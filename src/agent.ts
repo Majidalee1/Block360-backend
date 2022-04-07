@@ -1,12 +1,12 @@
 import { writeFileSync } from "fs";
-import { Subscribable } from "./subscribable_base";
+import moment from "moment";
+import { LogEntry } from "./interfaces";
 
 export interface AgentImplementation {
-  //   public isAlive(): boolean;
-  // pirvate name
   name: string;
-  isAlive: () => boolean;
+
   writeToLogfile: (message: string) => void;
+  startWriting: () => void;
 }
 
 // consructor type
@@ -19,9 +19,7 @@ type AgentInfo = {
 
 type AgentConstructor = new (agentInfo: AgentInfo) => AgentImplementation;
 
-export class Agent extends Subscribable<string> implements AgentImplementation {
-  alive!: boolean;
-
+export class Agent implements AgentImplementation {
   // set agent alive status
 
   constructor(
@@ -29,23 +27,13 @@ export class Agent extends Subscribable<string> implements AgentImplementation {
     private logFile: string,
     private interval: number
   ) {
-    super();
-    this.writeToLogfile(`${this.name} is alive`);
-    // check if interval is greater than 5 seconds
-    this.setAlive(this.interval <= 5000);
-  }
-
-  public isAlive(): boolean {
-    return this.alive;
-  }
-
-  public setAlive(alive: boolean) {
-    this.alive = alive;
+    this.startWriting();
   }
 
   public writeToLogfile(message: string) {
-    const logEntry = {
-      _id: new Date().getTime().toString(),
+    const logEntry: LogEntry = {
+      // currnet timestamp
+      _id: moment().unix().toString(),
       _version: 1,
       _score: null,
       _source: {
@@ -60,13 +48,19 @@ export class Agent extends Subscribable<string> implements AgentImplementation {
         },
       },
     };
+    writeFileSync(this.logFile, JSON.stringify(logEntry) + "\n", {
+      flag: "a",
+    });
+  }
 
-    this.notify(JSON.stringify(logEntry));
-
+  // write recurring log entries
+  async startWriting() {
     setInterval(() => {
-      writeFileSync(this.logFile, JSON.stringify(logEntry, null, 2), {
-        flag: "a",
-      });
+      this.writeToLogfile(
+        `Info [${new Date().toISOString()}] ${
+          this.name
+        } logging, number=${Math.floor(Math.random() * 1000000)}`
+      );
     }, this.interval);
   }
 }
